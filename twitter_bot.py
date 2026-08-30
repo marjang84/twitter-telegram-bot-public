@@ -1,5 +1,6 @@
 import urllib.request
 import urllib.parse
+import urllib.error
 import xml.etree.ElementTree as ET
 import html
 import re
@@ -129,15 +130,21 @@ def get_tweets():
 
 def telegram_request(method, data):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/{method}"
-
     encoded_data = urllib.parse.urlencode(data).encode()
 
-    with urllib.request.urlopen(
-        url,
-        data=encoded_data,
-        timeout=30
-    ) as response:
-        return response.read()
+    try:
+        with urllib.request.urlopen(
+            url,
+            data=encoded_data,
+            timeout=30
+        ) as response:
+            return response.read()
+
+    except urllib.error.HTTPError as error:
+        error_body = error.read().decode("utf-8", errors="replace")
+        print(f"Telegram API error in {method}: HTTP {error.code}")
+        print(f"Telegram response: {error_body}")
+        raise
 
 
 def send_text(text):

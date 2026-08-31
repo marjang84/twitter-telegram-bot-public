@@ -159,6 +159,7 @@ def send_text(text):
 
 def send_photo(photo_url, caption=""):
     # Download the image ourselves first
+    print(f"Image URL: {photo_url}")
     image_request = urllib.request.Request(
         photo_url,
        headers={

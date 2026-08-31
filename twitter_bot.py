@@ -166,7 +166,7 @@ def send_photo(photo_url, caption=""):
     "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
     "Referer": "https://nitter.perennialte.ch/"
-}
+
         }
     )
 

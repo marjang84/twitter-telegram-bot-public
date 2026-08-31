@@ -158,16 +158,68 @@ def send_text(text):
 
 
 def send_photo(photo_url, caption=""):
-    data = {
-        "chat_id": CHAT_ID,
-        "photo": photo_url
-    }
+    # Download the image ourselves first
+    image_request = urllib.request.Request(
+        photo_url,
+        headers={
+            "User-Agent": "Mozilla/5.0"
+        }
+    )
+
+    with urllib.request.urlopen(image_request, timeout=30) as response:
+        image_data = response.read()
+        content_type = response.headers.get(
+            "Content-Type",
+            "image/jpeg"
+        )
+
+    boundary = "----TelegramBotBoundary123456789"
+
+    body = bytearray()
+
+    def add_field(name, value):
+        body.extend(
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="{name}"\r\n\r\n'
+            f"{value}\r\n".encode("utf-8")
+        )
+
+    add_field("chat_id", CHAT_ID)
 
     if caption:
-        data["caption"] = caption
+        add_field("caption", caption)
 
-    telegram_request("sendPhoto", data)
+    body.extend(
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="photo"; filename="tweet_image.jpg"\r\n'
+        f"Content-Type: {content_type}\r\n\r\n".encode("utf-8")
+    )
 
+    body.extend(image_data)
+    body.extend(f"\r\n--{boundary}--\r\n".encode("utf-8"))
+
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
+
+    request = urllib.request.Request(
+        url,
+        data=bytes(body),
+        headers={
+            "Content-Type": f"multipart/form-data; boundary={boundary}"
+        }
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return response.read()
+
+    except urllib.error.HTTPError as error:
+        error_body = error.read().decode(
+            "utf-8",
+            errors="replace"
+        )
+        print(f"Telegram photo upload error: HTTP {error.code}")
+        print(f"Telegram response: {error_body}")
+        raise
 
 def send_to_telegram(tweet):
     text = tweet["text"]

@@ -160,6 +160,12 @@ def send_text(text):
 def send_photo(photo_url, caption=""):
     # Download the image ourselves first
     print(f"Image URL: {photo_url}")
+    
+    if "/pic/media%2F" in photo_url:
+    filename = photo_url.split("/pic/media%2F", 1)[1]
+    photo_url = f"https://pbs.twimg.com/media/{filename}"
+    print(f"Direct X image URL: {photo_url}")
+    
     image_request = urllib.request.Request(
         photo_url,
        headers={

@@ -12,7 +12,7 @@ CHAT_ID = os.environ.get("CHAT_ID")
 RSS_URLS = [
     "https://rss.xcancel.com/The_RockTrading/rss",
     "https://nitter.perennialte.ch/The_RockTrading/rss",
-    "https://nitter.net/The_RockTrading/rss",
+    "https://nitter.privacyredirect.com/The_RockTrading/rss",
 ]
 LAST_ID_FILE = "last_tweet_id.txt"
 

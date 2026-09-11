@@ -26,79 +26,69 @@ def clean_text(text):
 def get_tweets():
     last_error = None
 
-    for rss_url in RSS_URLS:
+    profile_urls = [
+        "https://nitter.tiekoetter.com/The_RockTrading",
+        "https://xcancel.com/The_RockTrading",
+    ]
+
+    for profile_url in profile_urls:
         try:
-            print(f"Trying RSS source: {rss_url}")
+            print(f"Trying profile source: {profile_url}")
 
             request = urllib.request.Request(
-                rss_url,
+                profile_url,
                 headers={
                     "User-Agent": "Mozilla/5.0",
-                    "Accept": "application/rss+xml, application/xml, text/xml, */*"
+                    "Accept": "text/html,application/xhtml+xml"
                 }
             )
 
             with urllib.request.urlopen(request, timeout=30) as response:
-                rss_data = response.read()
+                page = response.read().decode("utf-8", errors="replace")
 
-            root = ET.fromstring(rss_data)
-            channel = root.find("channel")
-
-            if channel is None:
-                raise ValueError("RSS channel not found")
+            blocks = re.split(
+                r'<div class="timeline-item[^"]*"',
+                page
+            )[1:]
 
             tweets = []
 
-            for item in channel.findall("item"):
-                title = clean_text(item.findtext("title", ""))
-                link = item.findtext("link", "")
-                guid = item.findtext("guid", link)
+            for block in blocks:
+                status_match = re.search(
+                    r'href=["\'][^"\']*/status/(\d+)[^"\']*["\']',
+                    block
+                )
 
-                # Keep the tweet ID consistent even when switching RSS sources
-                status_match = re.search(r"/status/(\d+)", link or guid)
+                if not status_match:
+                    continue
 
-                if status_match:
-                    tweet_id = status_match.group(1)
+                tweet_id = status_match.group(1)
+
+                content_match = re.search(
+                    r'<div[^>]+class=["\'][^"\']*tweet-content[^"\']*["\'][^>]*>(.*?)</div>',
+                    block,
+                    flags=re.IGNORECASE | re.DOTALL
+                )
+
+                if content_match:
+                    tweet_text = clean_text(content_match.group(1))
                 else:
-                    tweet_id = guid
+                    tweet_text = ""
 
                 images = []
 
-                # Look for media elements in the RSS item
-                for element in item.iter():
-                    tag = element.tag.lower()
-
-                    if tag.endswith("content") or tag.endswith("thumbnail"):
-                        image_url = element.attrib.get("url", "")
-                        media_type = element.attrib.get("type", "")
-
-                        if image_url and (
-                            media_type.startswith("image/")
-                            or image_url.lower().endswith(
-                                (".jpg", ".jpeg", ".png", ".webp")
-                            )
-                        ):
-                            image_url = urllib.parse.urljoin(
-                                rss_url,
-                                image_url
-                            )
-
-                            if image_url not in images:
-                                images.append(image_url)
-
-                # Images can also be inside the description HTML
-                description = item.findtext("description", "")
-                description = html.unescape(description or "")
-
                 found_images = re.findall(
                     r'<img[^>]+src=["\']([^"\']+)["\']',
-                    description,
+                    block,
                     flags=re.IGNORECASE
                 )
 
                 for image_url in found_images:
+                    if "/pic/media" not in image_url and "pbs.twimg.com/media/" not in image_url:
+                        continue
+
                     image_url = urllib.parse.urljoin(
-                        rss_url,
+                        profile_url,
                         image_url
                     )
 
@@ -107,27 +97,25 @@ def get_tweets():
 
                 tweets.append({
                     "id": tweet_id,
-                    "text": title,
+                    "text": tweet_text,
                     "images": images
                 })
 
             if not tweets:
-                raise ValueError("RSS source returned no tweets")
+                raise ValueError("Profile source returned no tweets")
 
-            print(f"RSS source OK: {rss_url}")
+            print(f"Profile source OK: {profile_url}")
             return tweets
 
         except Exception as error:
             last_error = error
-            print(f"RSS source failed: {rss_url}")
+            print(f"Profile source failed: {profile_url}")
             print(f"Reason: {error}")
             continue
 
     raise RuntimeError(
-        f"All RSS sources failed. Last error: {last_error}"
+        f"All profile sources failed. Last error: {last_error}"
     )
-
-
 def telegram_request(method, data):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/{method}"
     encoded_data = urllib.parse.urlencode(data).encode()

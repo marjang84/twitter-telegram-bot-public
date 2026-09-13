@@ -2,9 +2,7 @@ import urllib.request
 import urllib.error
 
 urls = [
-    "https://mobile.twstalker.com/The_RockTrading",
-    "https://twstalker.com/The_RockTrading",
-    "https://www.twstalker.com/The_RockTrading",
+    "https://syndication.twitter.com/srv/timeline-profile/screen-name/The_RockTrading",
 ]
 
 for url in urls:
@@ -29,7 +27,11 @@ for url in urls:
             print("FINAL URL:", response.geturl())
             print("CONTENT-TYPE:", response.headers.get("Content-Type"))
             print("BYTES:", len(data))
-            print("START:", text[:1000])
+
+            print("HAS NEXT DATA:", "__NEXT_DATA__" in text)
+            print("HAS STATUS:", "/status/" in text)
+
+            print("START:", text[:1500])
 
     except urllib.error.HTTPError as error:
         print("HTTP ERROR:", error.code)

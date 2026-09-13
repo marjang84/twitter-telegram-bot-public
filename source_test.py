@@ -3,13 +3,7 @@ import urllib.error
 
 urls = [
     "https://rss.xcancel.com/The_RockTrading/rss",
-    "https://nitter.perennialte.ch/The_RockTrading/rss",
     "https://xcancel.com/The_RockTrading/rss",
-    "https://nitter.poast.org/The_RockTrading/rss",
-    "https://nitter.privacyredirect.com/The_RockTrading/rss",
-    "https://nitter.tiekoetter.com/The_RockTrading/rss",
-    "https://nuku.trabun.org/The_RockTrading/rss",
-    "https://twiiit.com/The_RockTrading/rss",
 ]
 
 for url in urls:
@@ -21,17 +15,19 @@ for url in urls:
             url,
             headers={
                 "User-Agent": "Mozilla/5.0",
-                "Accept": "application/rss+xml,application/xml,text/xml,text/html,*/*"
+                "Accept": "application/rss+xml,application/xml,text/xml,*/*"
             }
         )
 
         with urllib.request.urlopen(request, timeout=20) as response:
             data = response.read()
 
-            print("STATUS:", response.status)
-            print("CONTENT-TYPE:", response.headers.get("Content-Type"))
-            print("BYTES:", len(data))
-            print("START:", data[:200].decode("utf-8", errors="replace"))
+        text = data.decode("utf-8", errors="replace")
+
+        print("BYTES:", len(data))
+        print("FULL RESPONSE START")
+        print(text)
+        print("FULL RESPONSE END")
 
     except urllib.error.HTTPError as error:
         print("HTTP ERROR:", error.code)

@@ -2,7 +2,7 @@ import urllib.request
 import urllib.error
 
 urls = [
-    "https://syndication.twitter.com/srv/timeline-profile/screen-name/The_RockTrading",
+    "https://rss.gurify.com/The_RockTrading/rss",
 ]
 
 for url in urls:
@@ -13,9 +13,8 @@ for url in urls:
         request = urllib.request.Request(
             url,
             headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                "Accept": "text/html,application/xhtml+xml,*/*",
-                "Accept-Language": "en-US,en;q=0.9",
+                "User-Agent": "Mozilla/5.0",
+                "Accept": "application/rss+xml,application/xml,text/xml,text/html,*/*",
             }
         )
 
@@ -27,11 +26,8 @@ for url in urls:
             print("FINAL URL:", response.geturl())
             print("CONTENT-TYPE:", response.headers.get("Content-Type"))
             print("BYTES:", len(data))
-
-            print("HAS NEXT DATA:", "__NEXT_DATA__" in text)
             print("HAS STATUS:", "/status/" in text)
-
-            print("START:", text[:1500])
+            print("START:", text[:2000])
 
     except urllib.error.HTTPError as error:
         print("HTTP ERROR:", error.code)

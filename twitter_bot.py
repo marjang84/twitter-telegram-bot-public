@@ -24,89 +24,92 @@ def clean_text(text):
 
 
 def get_tweets():
-    profile_url = "https://site.twstalker.com/The_RockTrading"
+    rss_urls = [
+        "https://rss.xcancel.com/The_RockTrading/rss",
+        "https://xcancel.com/The_RockTrading/rss",
+    ]
 
-    print(f"Trying TwStalker: {profile_url}")
+    last_error = None
 
-    request = urllib.request.Request(
-        profile_url,
-        headers={
-            "User-Agent": "Mozilla/5.0",
-            "Accept": "text/html,application/xhtml+xml"
-        }
-    )
+    for rss_url in rss_urls:
+        try:
+            print(f"Trying RSS source: {rss_url}")
 
-    with urllib.request.urlopen(request, timeout=30) as response:
-        page = response.read().decode("utf-8", errors="replace")
-
-    tweet_links = list(
-        re.finditer(
-            r'href=["\']/The_RockTrading/status/(\d+)["\']',
-            page,
-            flags=re.IGNORECASE
-        )
-    )
-
-    if not tweet_links:
-        raise RuntimeError("TwStalker returned no tweet links")
-
-    tweets = []
-
-    for index, match in enumerate(tweet_links):
-        tweet_id = match.group(1)
-
-        start = match.start()
-
-        if index + 1 < len(tweet_links):
-            end = tweet_links[index + 1].start()
-        else:
-            end = min(len(page), start + 15000)
-
-        block = page[start:end]
-
-        text_match = re.search(
-            r'<p[^>]*>(.*?)</p>',
-            block,
-            flags=re.IGNORECASE | re.DOTALL
-        )
-
-        if text_match:
-            tweet_text = clean_text(text_match.group(1))
-        else:
-            tweet_text = ""
-
-        images = []
-
-        found_images = re.findall(
-            r'<img[^>]+src=["\']([^"\']+)["\']',
-            block,
-            flags=re.IGNORECASE
-        )
-
-        for image_url in found_images:
-            image_url = urllib.parse.urljoin(
-                profile_url,
-                image_url
+            request = urllib.request.Request(
+                rss_url,
+                headers={
+                    "User-Agent": "Mozilla/5.0",
+                    "Accept": "application/rss+xml,application/xml,text/xml,*/*"
+                }
             )
 
-            if image_url not in images:
-                images.append(image_url)
+            with urllib.request.urlopen(request, timeout=30) as response:
+                raw_data = response.read()
 
-        tweets.append({
-            "id": tweet_id,
-            "text": tweet_text,
-            "images": images
-        })
+            raw_data = raw_data.lstrip()
 
-    unique_tweets = {}
+            root = ET.fromstring(raw_data)
 
-    for tweet in tweets:
-        unique_tweets[tweet["id"]] = tweet
+            tweets = []
 
-    tweets = list(unique_tweets.values())
+            for item in root.findall(".//item"):
+                title = item.findtext("title") or ""
+                link = item.findtext("link") or ""
+                description = item.findtext("description") or ""
 
-    print(f"TwStalker OK. Found {len(tweets)} tweets.")
-    return tweets
+                status_match = re.search(
+                    r"/status/(\d+)",
+                    link
+                )
+
+                if not status_match:
+                    continue
+
+                tweet_id = status_match.group(1)
+
+                tweet_text = clean_text(title)
+
+                if not tweet_text:
+                    tweet_text = clean_text(description)
+
+                images = []
+
+                image_matches = re.findall(
+                    r'<img[^>]+src=["\']([^"\']+)["\']',
+                    description,
+                    flags=re.IGNORECASE
+                )
+
+                for image_url in image_matches:
+                    image_url = html.unescape(image_url)
+                    image_url = urllib.parse.urljoin(
+                        rss_url,
+                        image_url
+                    )
+
+                    if image_url not in images:
+                        images.append(image_url)
+
+                tweets.append({
+                    "id": tweet_id,
+                    "text": tweet_text,
+                    "images": images
+                })
+
+            if not tweets:
+                raise ValueError("RSS source returned no tweets")
+
+            print(f"RSS source OK: {rss_url}")
+            return tweets
+
+        except Exception as error:
+            last_error = error
+            print(f"RSS source failed: {rss_url}")
+            print(f"Reason: {error}")
+
+    raise RuntimeError(
+        f"All RSS sources failed. Last error: {last_error}"
+    )
     
 def telegram_request(method, data):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/{method}"

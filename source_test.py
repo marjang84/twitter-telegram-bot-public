@@ -2,7 +2,8 @@ import urllib.request
 import urllib.error
 
 urls = [
-    "https://rss.gurify.com/The_RockTrading/rss",
+    "https://nitter.app/The_RockTrading",
+    "https://nitter.app/The_RockTrading/rss",
 ]
 
 for url in urls:
@@ -13,8 +14,9 @@ for url in urls:
         request = urllib.request.Request(
             url,
             headers={
-                "User-Agent": "Mozilla/5.0",
-                "Accept": "application/rss+xml,application/xml,text/xml,text/html,*/*",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                "Accept": "text/html,application/xhtml+xml,application/rss+xml,application/xml,*/*",
+                "Accept-Language": "en-US,en;q=0.9",
             }
         )
 
@@ -27,6 +29,7 @@ for url in urls:
             print("CONTENT-TYPE:", response.headers.get("Content-Type"))
             print("BYTES:", len(data))
             print("HAS STATUS:", "/status/" in text)
+            print("HAS TWEET:", "tweet" in text.lower())
             print("START:", text[:2000])
 
     except urllib.error.HTTPError as error:

@@ -24,98 +24,90 @@ def clean_text(text):
 
 
 def get_tweets():
-    last_error = None
+    profile_url = "https://site.twstalker.com/The_RockTrading"
 
-    profile_urls = [
-        "https://nitter.tiekoetter.com/The_RockTrading",
-        "https://xcancel.com/The_RockTrading",
-    ]
+    print(f"Trying TwStalker: {profile_url}")
 
-    for profile_url in profile_urls:
-        try:
-            print(f"Trying profile source: {profile_url}")
+    request = urllib.request.Request(
+        profile_url,
+        headers={
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "text/html,application/xhtml+xml"
+        }
+    )
 
-            request = urllib.request.Request(
+    with urllib.request.urlopen(request, timeout=30) as response:
+        page = response.read().decode("utf-8", errors="replace")
+
+    tweet_links = list(
+        re.finditer(
+            r'href=["\']/The_RockTrading/status/(\d+)["\']',
+            page,
+            flags=re.IGNORECASE
+        )
+    )
+
+    if not tweet_links:
+        raise RuntimeError("TwStalker returned no tweet links")
+
+    tweets = []
+
+    for index, match in enumerate(tweet_links):
+        tweet_id = match.group(1)
+
+        start = match.start()
+
+        if index + 1 < len(tweet_links):
+            end = tweet_links[index + 1].start()
+        else:
+            end = min(len(page), start + 15000)
+
+        block = page[start:end]
+
+        text_match = re.search(
+            r'<p[^>]*>(.*?)</p>',
+            block,
+            flags=re.IGNORECASE | re.DOTALL
+        )
+
+        if text_match:
+            tweet_text = clean_text(text_match.group(1))
+        else:
+            tweet_text = ""
+
+        images = []
+
+        found_images = re.findall(
+            r'<img[^>]+src=["\']([^"\']+)["\']',
+            block,
+            flags=re.IGNORECASE
+        )
+
+        for image_url in found_images:
+            image_url = urllib.parse.urljoin(
                 profile_url,
-                headers={
-                    "User-Agent": "Mozilla/5.0",
-                    "Accept": "text/html,application/xhtml+xml"
-                }
+                image_url
             )
 
-            with urllib.request.urlopen(request, timeout=30) as response:
-                page = response.read().decode("utf-8", errors="replace")
+            if image_url not in images:
+                images.append(image_url)
 
-            blocks = re.split(
-                r'<div class="timeline-item[^"]*"',
-                page
-            )[1:]
+        tweets.append({
+            "id": tweet_id,
+            "text": tweet_text,
+            "images": images
+        })
 
-            tweets = []
+    unique_tweets = {}
 
-            for block in blocks:
-                status_match = re.search(
-                    r'href=["\'][^"\']*/status/(\d+)[^"\']*["\']',
-                    block
-                )
+    for tweet in tweets:
+        unique_tweets[tweet["id"]] = tweet
 
-                if not status_match:
-                    continue
+    tweets = list(unique_tweets.values())
 
-                tweet_id = status_match.group(1)
-
-                content_match = re.search(
-                    r'<div[^>]+class=["\'][^"\']*tweet-content[^"\']*["\'][^>]*>(.*?)</div>',
-                    block,
-                    flags=re.IGNORECASE | re.DOTALL
-                )
-
-                if content_match:
-                    tweet_text = clean_text(content_match.group(1))
-                else:
-                    tweet_text = ""
-
-                images = []
-
-                found_images = re.findall(
-                    r'<img[^>]+src=["\']([^"\']+)["\']',
-                    block,
-                    flags=re.IGNORECASE
-                )
-
-                for image_url in found_images:
-                    if "/pic/media" not in image_url and "pbs.twimg.com/media/" not in image_url:
-                        continue
-
-                    image_url = urllib.parse.urljoin(
-                        profile_url,
-                        image_url
-                    )
-
-                    if image_url not in images:
-                        images.append(image_url)
-
-                tweets.append({
-                    "id": tweet_id,
-                    "text": tweet_text,
-                    "images": images
-                })
-
-            if not tweets:
-                raise ValueError("Profile source returned no tweets")
-
-            print(f"Profile source OK: {profile_url}")
-            return tweets
-
-        except Exception as error:
-            last_error = error
-            print(f"Profile source failed: {profile_url}")
-            print(f"Reason: {error}")
-            continue
-
-    raise RuntimeError(
-        f"All profile sources failed. Last error: {last_error}"
-    )
+    print(f"TwStalker OK. Found {len(tweets)} tweets.")
+    return tweets
+    
 def telegram_request(method, data):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/{method}"
     encoded_data = urllib.parse.urlencode(data).encode()
